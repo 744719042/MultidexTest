@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">MultiDexTest</string>
+    <string-array name="classes">
+        <item>com.example.multidextest</item>
+        <item>android.support</item>
+    </string-array>
+</resources>
