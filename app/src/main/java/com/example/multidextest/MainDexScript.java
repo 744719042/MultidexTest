@@ -18,7 +18,11 @@ import javassist.bytecode.FieldInfo;
 import javassist.bytecode.MethodInfo;
 
 public class MainDexScript {
-    public static final List<String> MAIN_CLASSES = Arrays.asList("com.example.multidextest.MyApplication");
+    public static final List<String> MAIN_CLASSES = Arrays.asList(
+            "com.example.multidextest.MyApplication",
+            "com.example.multidextest.MainActivity",
+            "com.example.multidextest.MultidexInstaller");
+
     public static void main(String[] args) throws Exception {
         Set<String> set = new TreeSet<>();
         for (String clazz : MAIN_CLASSES) {
@@ -37,7 +41,50 @@ public class MainDexScript {
             pw.println(clazz);
         }
 
+        List<String> loginR = Arrays.asList("com/example/login/R.class",
+                "com/example/login/R$anim.class",
+                "com/example/login/R$animator.class",
+                "com/example/login/R$array.class",
+                "com/example/login/R$attr.class",
+                "com/example/login/R$bool.class",
+                "com/example/login/R$color.class",
+                "com/example/login/R$dimen.class",
+                "com/example/login/R$drawable.class",
+                "com/example/login/R$id.class",
+                "com/example/login/R$integer.class",
+                "com/example/login/R$layout.class",
+                "com/example/login/R$mipmap.class",
+                "com/example/login/R$string.class",
+                "com/example/login/R$style.class",
+                "com/example/login/R$styleable.class");
+
+        List<String> orderR = Arrays.asList("com/example/order/R.class",
+                "com/example/order/R$anim.class",
+                "com/example/order/R$animator.class",
+                "com/example/order/R$array.class",
+                "com/example/order/R$attr.class",
+                "com/example/order/R$bool.class",
+                "com/example/order/R$color.class",
+                "com/example/order/R$dimen.class",
+                "com/example/order/R$drawable.class",
+                "com/example/order/R$id.class",
+                "com/example/order/R$integer.class",
+                "com/example/order/R$layout.class",
+                "com/example/order/R$mipmap.class",
+                "com/example/order/R$string.class",
+                "com/example/order/R$style.class",
+                "com/example/order/R$styleable.class");
+
+        for (String rPath : orderR) {
+            pw.println(rPath);
+        }
+
+        for (String rPath : loginR) {
+            pw.println(rPath);
+        }
+
         pw.close();
+
         System.out.println(file.getAbsolutePath());
     }
 
