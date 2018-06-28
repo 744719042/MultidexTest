@@ -1,3 +1,7 @@
+import com.android.build.api.transform.*
+import com.android.build.gradle.internal.pipeline.TransformManager
+import org.apache.commons.codec.digest.DigestUtils
+
 apply plugin: 'com.android.application'
 
 android {
@@ -17,13 +21,6 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-
-    dexOptions {
-        javaMaxHeapSize "4g"
-        preDexLibraries = false
-        additionalParameters '--multi-dex', '--main-dex-list=' + project.rootDir.absolutePath + '/app/maindexlist.txt', '--minimal-main-dex',
-                '--set-max-idx-number=10000'
-    }
 }
 
 dependencies {
@@ -36,4 +33,130 @@ dependencies {
     implementation project(':login')
     implementation project(':order')
 }
+
+task makeDex(dependsOn: 'assembleDebug') {
+    doLast {
+        def baseLibDir = file("$buildDir/dexs.jar")
+        if (!baseLibDir.exists()) {
+            baseLibDir.createNewFile()
+        }
+        def baseLib = baseLibDir.getAbsolutePath()
+
+        StringBuilder dexBuilder = new StringBuilder()
+        dexBuilder.append("dx --dex --multi-dex").append(" ")
+        dexBuilder.append("--main-dex-list=$project.rootDir.absolutePath/app/maindexlist.txt").append(" ")
+        dexBuilder.append("--minimal-main-dex").append(" ")
+        dexBuilder.append("--set-max-idx-number=40000").append(" ")
+        def baseInputs = new File("$project.buildDir/inputs.txt")
+        dexBuilder.append("--input-list ").append(baseInputs.getAbsolutePath()).append(" ")
+        dexBuilder.append("--output=$baseLib")
+        println dexBuilder.toString()
+        project.exec {
+            executable 'cmd'
+            args '/c', dexBuilder.toString()
+        }
+    }
+}
+
+def resourcePath = file("$buildDir/intermediates/res/debug/resources-debug.ap_").getAbsolutePath()
+task buildApk(type:Zip, dependsOn: 'makeDex') {
+    String dexName = "dexs.jar"
+    String apkName = project.name + ".zip"
+
+    inputs.file "$buildDir/$dexName"
+    inputs.file "$resourcePath"
+
+    outputs.file "$buildDir/$apkName"
+
+    destinationDir = file("${buildDir}")
+    duplicatesStrategy = 'fail'
+    from zipTree("$buildDir/$dexName")
+    from zipTree("$resourcePath")
+
+    doLast {
+        copy {
+            from "$buildDir/$apkName"
+            into "$buildDir/"
+            rename {
+                fileName -> "$project.name-debug-unsigned.apk"
+            }
+        }
+    }
+}
+
+task signApk(dependsOn: 'buildApk') {
+    doLast {
+        def unsignedApk = "$buildDir/$project.name-debug-unsigned.apk"
+        def command = new StringBuilder()
+        command.append("jarsigner -verbose").append(" ")
+        command.append("-keystore C:\\Users\\Administrator\\.android\\debug.keystore").append(" ")
+        command.append("-signedjar $buildDir/$project.name-debug-signed.apk").append(" ")
+        command.append(unsignedApk).append(" androiddebugkey")
+
+        println command.toString()
+        project.exec {
+            executable 'cmd'
+            args '/c', command.toString()
+        }
+    }
+}
+
+class MyClassTransform extends Transform {
+    Project project
+    MyClassTransform(Project pro) {
+        this.project = pro
+    }
+
+    @Override
+    String getName() {
+        return "MyClassTransform"
+    }
+
+    @Override
+    Set<QualifiedContent.ContentType> getInputTypes() {
+        return TransformManager.CONTENT_CLASS
+    }
+
+    @Override
+    Set<QualifiedContent.Scope> getScopes() {
+        return TransformManager.SCOPE_FULL_PROJECT
+    }
+
+    @Override
+    boolean isIncremental() {
+        return false
+    }
+
+    @Override
+    void transform(TransformInvocation transformInvocation) throws TransformException, InterruptedException, IOException {
+        Collection<TransformInput> inputs = transformInvocation.getInputs()
+        Collection<TransformInput> referenceInputs = transformInvocation.getReferencedInputs()
+        TransformOutputProvider outPutProvider = transformInvocation.getOutputProvider()
+
+        def sourceInputs = new ArrayList()
+        inputs.each {
+            TransformInput transformInput ->
+                transformInput.directoryInputs.each {
+                    it ->
+                        sourceInputs.add(it.file.absolutePath)
+                }
+
+                transformInput.jarInputs.each {
+                    it ->
+                        sourceInputs.add(it.file.absolutePath)
+                }
+        }
+
+        def baseInputs = new File("$project.buildDir/inputs.txt")
+        if (!baseInputs.exists()) {
+            baseInputs.createNewFile()
+        }
+
+        baseInputs.withWriterAppend {
+            sourceInputs.forEach { line -> it.println(line) }
+        }
+    }
+}
+
+android.registerTransform(new MyClassTransform(project))
 
